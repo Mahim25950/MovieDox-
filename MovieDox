@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Explorer | Unlock by Ads</title>
+    
+    <script src='//libtl.com/sdk.js' data-zone='9356525' data-sdk='show_9356525'></script>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        /* Custom Styles for Cinematic Look */
+        body { font-family: 'Inter', sans-serif; background-color: #121212; color: #ffffff; }
+        .dark-bg { background-color: #121212; }
+        .card-bg { background-color: #210000; border: 1px solid #450000; } 
+        .border-accent, .text-accent { border-color: #e50914; color: #e50914; }
+        .btn-accent { background-color: #e50914; color: #ffffff; font-weight: bold; }
+        .btn-accent:hover { background-color: #b8070e; }
+        .input-field { background-color: #2c2c2c; border: 1px solid #444; }
+        .main-page { display: none; }
+        .main-page.active { display: flex; animation: fadeIn 0.5s ease-in-out; }
+        .sub-page { display: none; }
+        .sub-page.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        .bottom-nav a.active { color: #e50914; }
+        
+        .movie-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        .movie-card {
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            position: relative;
+            cursor: pointer;
+        }
+        .movie-poster {
+            width: 100%;
+            height: 220px;
+            background-color: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #ccc;
+        }
+        .lock-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.01);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 10px;
+            backdrop-filter: blur(2px);
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body class="max-w-md mx-auto">
+
+    <div id="loader" class="hidden fixed inset-0 dark-bg bg-opacity-75 flex items-center justify-center z-50">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-accent"></div>
+    </div>
+
+    <div id="auth-section" class="min-h-screen p-6 flex-col justify-center main-page">
+        <h1 class="text-4xl font-bold text-center mb-2 text-accent">🎬 Movie Explorer</h1>
+        <p class="text-center text-gray-400 mb-8">Login or Signup to start unlocking movies</p>
+        <div id="auth-container">
+            <div id="login-view">
+                <input id="login-email" type="email" placeholder="Email" class="w-full p-3 rounded-lg input-field mb-4">
+                <input id="login-password" type="password" placeholder="Password" class="w-full p-3 rounded-lg input-field mb-4">
+                <button id="login-btn" class="w-full p-3 rounded-lg btn-accent mb-4">Login</button>
+                <p class="text-center text-gray-400">Don't have an account? <a href="#" id="show-signup" class="font-semibold text-accent">Sign Up</a></p>
+            </div>
+            <div id="signup-view" class="hidden">
+                 <input id="signup-name" type="text" placeholder="Full Name" class="w-full p-3 rounded-lg input-field mb-4">
+                <input id="signup-email" type="email" placeholder="Email" class="w-full p-3 rounded-lg input-field mb-4">
+                <input id="signup-password" type="password" placeholder="Password" class="w-full p-3 rounded-lg input-field mb-4">
+                <button id="signup-btn" class="w-full p-3 rounded-lg btn-accent mb-4">Sign Up</button>
+                <p class="text-center text-gray-400">Already have an account? <a href="#" id="show-login" class="font-semibold text-accent">Login</a></p>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-container" class="min-h-screen flex-col main-page">
+        <header class="flex items-center justify-between p-4 sticky top-0 bg-opacity-80 backdrop-blur-md z-10 dark-bg">
+            <h1 class="text-xl font-bold text-accent">Movie Explorer</h1>
+            <div class="flex items-center space-x-4">
+                <div id="notification-bell" class="relative cursor-pointer">
+                    <i data-lucide="bell" class="w-6 h-6"></i>
+                    <div id="notification-dot" class="notification-dot"></div>
+                </div>
+                <i data-lucide="user" class="w-6 h-6 cursor-pointer" onclick="navigateTo('profile-page')"></i>
+            </div>
+        </header>
+
+        <main class="flex-grow">
+            <div id="home-page" class="p-4 space-y-6 sub-page">
+                <div class="card-bg p-4 rounded-lg flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">Welcome, <span id="home-user-name"></span>!</p>
+                        <p class="text-3xl font-bold">Watch & Unlock</p>
+                    </div>
+                    <button class="btn-accent px-6 py-2 rounded-lg" onclick="showAlert('This button is for premium subscription.')">Get Pro</button>
+                </div>
+                
+                <input type="text" id="searchBar" placeholder="Search for movies, series..." class="w-full p-3 rounded-lg input-field">
+
+                <section>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold">Unlockable Movies</h2>
+                    </div>
+                    <div id="movie-listing-grid" class="movie-grid">
+                        </div>
+                </section>
+                
+                </div>
+
+            <div id="profile-page" class="p-4 space-y-6 sub-page">
+                <h2 class="text-xl font-bold text-center mb-4">User Profile</h2>
+                <div class="flex flex-col items-center">
+                    <img src="https://placehold.co/100x100/1e1e1e/e50914?text=U" class="rounded-full mb-2">
+                    <h2 id="profile-name" class="text-xl font-bold">User Name</h2>
+                    <p id="profile-email" class="text-gray-400">user@email.com</p>
+                </div>
+                <h3 class="text-lg font-semibold mt-6 mb-3">Download History (Simulated)</h3>
+                    <div id="withdrawal-history-list" class="space-y-3">
+                        <p class="text-gray-400 text-center">No recent downloads.</p>
+                    </div>
+                <button id="logout-btn" class="w-full mt-6 p-3 rounded-lg bg-red-600 text-white font-bold">Logout</button>
+            </div>
+            
+            <div id="notifications-page" class="p-4 space-y-4 sub-page">
+                <h2 class="text-xl font-bold text-center">Notifications & Alerts</h2>
+                <div id="notifications-list" class="space-y-3"></div>
+            </div>
+            
+            <div id="movie-details-page" class="p-4 space-y-6 sub-page">
+                <button onclick="navigateTo('home-page')" class="text-accent mb-4 flex items-center">
+                    <i data-lucide="arrow-left" class="w-5 h-5 mr-2"></i> Back to Movies
+                </button>
+                <div id="details-content" class="space-y-4">
+                    </div>
+            </div>
+        </main>
+
+        <nav class="bottom-nav sticky bottom-0 grid grid-cols-3 items-center text-center py-2 card-bg">
+            <a href="#" class="nav-link active text-accent" data-page="home-page"><i data-lucide="clapperboard" class="mx-auto w-6 h-6"></i><span class="text-xs">Movies</span></a>
+            <a href="#" class="nav-link" data-page="notifications-page"><i data-lucide="bell" class="mx-auto w-6 h-6"></i><span class="text-xs">Alerts</span></a>
+            <a href="#" class="nav-link" data-page="profile-page"><i data-lucide="user" class="mx-auto w-6 h-6"></i><span class="text-xs">Profile</span></a>
+        </nav>
+    </div>
+    
+    <div id="custom-alert" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-gray-800 rounded-lg p-6 w-full max-w-sm text-center">
+            <p id="alert-message" class="mb-4"></p>
+            <button id="alert-ok-btn" class="btn-accent px-6 py-2 rounded-lg">OK</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // ----------------------------------------------------------------------
+        // 1. FIREBASE CONFIGURATION & INITIALIZATION (Backend Setup)
+        // ----------------------------------------------------------------------
+
+        // !!! WARNING: This is the user's config. Do not use in a real app. !!!
+        const firebaseConfig = {
+            apiKey: "AIzaSyDMN3D2ghLboXbXCR3EJ53gJTuEeYR9N8Y",
+            authDomain: "earm-db1ec.firebaseapp.com",
+            projectId: "earm-db1ec",
+            // ... other keys
+        };
+        
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, addDoc, serverTimestamp, query, where, getDocs, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const ADS_TO_UNLOCK = 3; // REQUIRED ADS TO UNLOCK ONE MOVIE
+        let currentUser = null;
+        let userData = null;
+        let userUnlockData = {}; // Stores user's per-movie unlock progress
+        let movieList = []; // Stores dynamically fetched movies
+        let unsubscribeMovies = null; // Listener for real-time movie updates
+        
+        // ----------------------------------------------------------------------
+        // 2. DOM ELEMENT REFERENCES
+        // ----------------------------------------------------------------------
+
+        const loader = document.getElementById('loader');
+        const profileNameEl = document.getElementById('profile-name');
+        const profileEmailEl = document.getElementById('profile-email');
+        const movieListingGrid = document.getElementById('movie-listing-grid');
+        const searchBar = document.getElementById('searchBar');
+        const homeUserNameEl = document.getElementById('home-user-name');
+
+        // ----------------------------------------------------------------------
+        // 3. LIFECYCLE & AUTH STATE MANAGEMENT
+        // ----------------------------------------------------------------------
+
+        window.onload = () => {
+            lucide.createIcons();
+            setupEventListeners();
+            showMainPage('auth-section');
+            loader.style.display = 'none';
+            onAuthStateChanged(auth, handleAuthStateChange);
+        };
+
+        async function handleAuthStateChange(user) {
+            if (user) {
+                loader.style.display = 'flex';
+                currentUser = user;
+                await fetchUserData();
+                await fetchUserUnlockData(); // Fetch unlock progress
+                await fetchMovies(); // NEW: Fetch movies dynamically on login
+                updateUI();
+                // renderMovieList(movieList); // Already called by fetchMovies' onSnapshot
+                showMainPage('app-container');
+                navigateTo('home-page');
+                loader.style.display = 'none';
+            } else {
+                currentUser = null;
+                userData = null;
+                userUnlockData = {};
+                if (unsubscribeMovies) unsubscribeMovies(); // Cleanup listener on logout
+                showMainPage('auth-section');
+            }
+        }
+        
+        // ----------------------------------------------------------------------
+        // 4. FIREBASE DATA FETCHING & UI UPDATES
+        // ----------------------------------------------------------------------
+
+        async function fetchUserData() {
+            if (!currentUser) return;
+            const userRef = doc(db, "users", currentUser.uid);
+            try {
+                const userSnap = await getDoc(userRef);
+                if (userSnap.exists()) {
+                    userData = userSnap.data();
+                } else {
+                    const defaultUserData = {
+                        name: currentUser.displayName || currentUser.email.split('@')[0], 
+                        email: currentUser.email,
+                        createdAt: serverTimestamp(),
+                    };
+                    await setDoc(userRef, defaultUserData);
+                    userData = defaultUserData;
+                }
+            } catch (error) {
+                console.error("Error fetching user data:", error);
+                showAlert("Error loading user data.");
+            }
+        }
+        
+        // --- NEW: Function to fetch movie list dynamically (REAL-TIME FIX) ---
+        async function fetchMovies() {
+            if (unsubscribeMovies) unsubscribeMovies(); // Clear old listener
+            const moviesRef = collection(db, "movies");
+            const q = query(moviesRef, orderBy("createdAt", "desc")); // Order by newest movie
+            
+            // Use onSnapshot for real-time updates
+            unsubscribeMovies = onSnapshot(q, (snapshot) => {
+                movieList = [];
+                snapshot.forEach(doc => {
+                    // Use Firestore document ID as the movie ID
+                    movieList.push({ id: doc.id, ...doc.data() }); 
+                });
+                renderMovieList(movieList); // Re-render every time data changes
+            }, (error) => {
+                console.error("Error fetching movies:", error);
+                showAlert("Error loading movie list.");
+            });
+        }
+        
+        // --- Function to fetch movie unlock progress (CORRECTED) ---
+        async function fetchUserUnlockData() {
+            if (!currentUser) return;
+            const unlockRef = doc(db, "movie_unlocks", currentUser.uid);
+            try {
+                const unlockSnap = await getDoc(unlockRef);
+                if (unlockSnap.exists()) {
+                    userUnlockData = unlockSnap.data();
+                    userUnlockData.unlocked = userUnlockData.unlocked || {};
+                    userUnlockData.progress = userUnlockData.progress || {};
+                } else {
+                    userUnlockData = { unlocked: {}, progress: {} };
+                    await setDoc(unlockRef, userUnlockData); 
+                }
+            } catch(error) {
+                 console.error("Error fetching unlock data:", error);
+            }
+        }
+        
+        function updateUI() {
+            if (!userData) return;
+            const userName = userData.name || 'User';
+            homeUserNameEl.textContent = userName;
+            profileNameEl.textContent = userName;
+            profileEmailEl.textContent = userData.email || 'No Email';
+        }
+
+        // --- Movie Listing Logic ---
+        function renderMovieList(movieList) {
+            movieListingGrid.innerHTML = ''; // Clear existing content
+            if (movieList.length === 0) {
+                movieListingGrid.innerHTML = '<p class="text-gray-400 text-center col-span-full">No movies found.</p>';
+                return;
+            }
+
+            movieList.forEach(movie => {
+                const card = document.createElement('div');
+                card.classList.add('movie-card');
+                
+                const isUnlocked = userUnlockData.unlocked?.[movie.id] === true;
+                const currentProgress = userUnlockData.progress?.[movie.id] || 0;
+                
+                // Clicking on the card for an unlocked movie will now call handleMovieClick
+                card.setAttribute('onclick', `handleMovieClick('${movie.id}', '${movie.title || 'Movie'}')`);
+
+                card.innerHTML = `
+                    <div class="movie-poster" style="background-image: url('${movie.posterUrl}'); background-size: cover; background-position: center;">
+                        <i data-lucide="${isUnlocked ? 'play' : 'lock'}" class="w-8 h-8 ${movie.posterUrl ? 'text-white' : 'text-gray-400'}"></i>
+                    </div>
+                    <div class="p-2">
+                        <h3 class="text-sm font-semibold text-gray-100 truncate">${movie.title || 'N/A'}</h3>
+                        <p class="text-xs text-gray-400">${movie.year || 'N/A'} | ${movie.rating || 'N/A'}</p>
+                    </div>
+                    ${!isUnlocked ? `
+                        <div class="lock-overlay">
+                            <i data-lucide="lock" class="w-8 h-8 mb-2"></i>
+                            <p class="text-sm font-bold mb-1">Locked</p>
+                            <p class="text-xs">Ads Watched: ${currentProgress}/${ADS_TO_UNLOCK}</p>
+                            <button class="btn-accent px-3 py-1 mt-2 rounded-lg text-xs">Watch Ad to Unlock</button>
+                        </div>
+                    ` : `
+                        <div class="lock-overlay bg-transparent backdrop-filter-none" style="opacity:0; pointer-events:none;"></div>
+                    `}
+                `;
+                movieListingGrid.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+        
+        // --- Movie Details Page Renderer (UPDATED FUNCTION TO SHOW ALL DOWNLOAD LINKS) ---
+        function renderMovieDetails(movie) {
+            const detailsContentEl = document.getElementById('details-content');
+            
+            // Dynamically generate download buttons based on available links
+            let downloadButtonsHtml = '';
+            
+            if (movie.downloadUrl480p) {
+                downloadButtonsHtml += `
+                    <a href="${movie.downloadUrl480p}" download="${movie.title}_480p.mp4" 
+                       class="w-full p-3 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold text-center flex items-center justify-center mt-3 transition duration-200">
+                        <i data-lucide="download" class="w-5 h-5 mr-2"></i> Download (480p)
+                    </a>
+                `;
+            }
+            if (movie.downloadUrl720p) {
+                downloadButtonsHtml += `
+                    <a href="${movie.downloadUrl720p}" download="${movie.title}_720p.mp4" 
+                       class="w-full p-3 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold text-center flex items-center justify-center mt-3 transition duration-200">
+                        <i data-lucide="download" class="w-5 h-5 mr-2"></i> Download (720p)
+                    </a>
+                `;
+            }
+            if (movie.downloadUrl1080p) {
+                downloadButtonsHtml += `
+                    <a href="${movie.downloadUrl1080p}" download="${movie.title}_1080p.mp4" 
+                       class="w-full p-3 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold text-center flex items-center justify-center mt-3 transition duration-200">
+                        <i data-lucide="download" class="w-5 h-5 mr-2"></i> Download (1080p)
+                    </a>
+                `;
+            }
+            
+            if (downloadButtonsHtml === '') {
+                 downloadButtonsHtml = '<p class="text-red-400 text-center mt-6">No download links available for this movie.</p>';
+            }
+
+
+            detailsContentEl.innerHTML = `
+                <img src="${movie.posterUrl || 'https://placehold.co/300x450/1e1e1e/e50914?text=Poster+N/A'}" 
+                     alt="${movie.title || 'N/A'} Poster" 
+                     class="w-full h-auto rounded-lg shadow-xl mb-4">
+                
+                <h1 class="text-3xl font-bold text-white">${movie.title || 'N/A'}</h1>
+                <p class="text-gray-400 text-lg">${movie.year || 'N/A'} | Rating: ${movie.rating || 'N/A'}</p>
+                
+                <div class="card-bg p-4 rounded-lg space-y-3">
+                    <h3 class="text-xl font-semibold border-b border-gray-700 pb-2 text-accent">Summary</h3>
+                    <p class="text-gray-300">
+                        ${movie.description || "No description provided."}
+                    </p>
+                </div>
+
+                <h3 class="text-xl font-semibold border-b border-gray-700 pb-2 text-accent mt-6">Download Options</h3>
+                <div class="space-y-3">
+                    ${downloadButtonsHtml}
+                </div>
+            `;
+            lucide.createIcons(); // To render the download icon
+        }
+
+        // --- Movie Click Handler (UPDATED) ---
+        window.handleMovieClick = function(movieId, movieTitle) {
+            const isUnlocked = userUnlockData.unlocked?.[movieId] === true;
+            
+            if (isUnlocked) {
+                 // UNLOCKED: Find movie details and navigate to the new page
+                 const movie = movieList.find(m => m.id === movieId); 
+                 if (movie) {
+                     renderMovieDetails(movie);
+                     navigateTo('movie-details-page');
+                 } else {
+                     showAlert("Movie details not found.");
+                 }
+                 return;
+            }
+            
+            // LOCKED: Continue ad-watching logic
+            const currentProgress = userUnlockData.progress?.[movieId] || 0;
+            if (currentProgress < ADS_TO_UNLOCK) {
+                showAlert(`To unlock **${movieTitle}**, you need to watch ${ADS_TO_UNLOCK - currentProgress} more ads. Starting ad now...`);
+                // Start the ad watching process
+                claimAdToUnlock(movieId, movieTitle);
+            } else {
+                // Movie should be ready to unlock
+                fetchUserUnlockData().then(() => renderMovieList(movieList)); // Use dynamic list
+            }
+        }
+        
+        function simulateDownload(movieTitle) {
+            // This function is now obsolete as the click handles navigation to the details page.
+            console.log(`Movie ${movieTitle} is unlocked, proceeding to details page.`);
+        }
+
+        // ----------------------------------------------------------------------
+        // 5. UNLOCK AD LOGIC (Core Logic)
+        // ----------------------------------------------------------------------
+        
+        window.claimAdToUnlock = async function(movieId, movieTitle) {
+            if (typeof window.show_9356525 !== 'function') {
+                return showAlert("Ad service is currently unavailable. Please try again later.");
+            }
+            
+            loader.style.display = 'flex';
+            
+            // 1. Show the Ad
+            let adPromise;
+            try {
+                adPromise = window.show_9356525();
+                await adPromise;
+
+                // 2. Ad Watched Success: Update Progress
+                const unlockRef = doc(db, "movie_unlocks", currentUser.uid);
+                
+                await fetchUserUnlockData();
+                
+                const currentProgress = userUnlockData.progress?.[movieId] || 0;
+                let newProgress = currentProgress + 1;
+                
+                let updateData = {};
+                
+                if (newProgress >= ADS_TO_UNLOCK) {
+                    // 3. UNLOCK COMPLETE
+                    updateData = {
+                        'unlocked': {
+                            ...userUnlockData.unlocked, 
+                            [movieId]: true
+                        },
+                        'progress': {
+                            ...userUnlockData.progress, 
+                            [movieId]: newProgress,
+                        }
+                    };
+                    showAlert(`Congratulations! **${movieTitle}** is now permanently UNLOCKED. You can download it now.`);
+                } else {
+                    // 4. PROGRESS UPDATE
+                    updateData = {
+                         'progress': {
+                            ...userUnlockData.progress, 
+                            [movieId]: newProgress,
+                        }
+                    };
+                    showAlert(`Ad viewed successfully! ${movieTitle}: ${newProgress}/${ADS_TO_UNLOCK} progress made. Watch ${ADS_TO_UNLOCK - newProgress} more ads.`);
+                }
+                
+                // Use updateDoc with merge: true implicitly handled by spreading nested objects
+                await updateDoc(unlockRef, updateData); 
+                
+                // 5. Update Local Data & UI (onSnapshot in fetchMovies will re-render)
+                await fetchUserUnlockData();
+                renderMovieList(movieList); // Use dynamic list
+                
+            } catch(e) {
+                console.error("Ad error:", e);
+                showAlert('Could not show ad or ad was closed early. Please try again.');
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        // ----------------------------------------------------------------------
+        // 6. EVENT LISTENERS & NAVIGATION (Unchanged)
+        // ----------------------------------------------------------------------
+
+        function showMainPage(pageId) {
+            document.querySelectorAll('.main-page').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+        }
+
+        function navigateTo(pageId) {
+            document.querySelectorAll('.sub-page').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active', 'text-accent');
+                if (link.dataset.page === pageId) link.classList.add('active', 'text-accent');
+            });
+            if (pageId === 'profile-page') loadDownloadHistory();
+        }
+        window.navigateTo = navigateTo;
+
+        function setupEventListeners() {
+            document.getElementById('show-signup').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('login-view').classList.add('hidden'); document.getElementById('signup-view').classList.remove('hidden'); });
+            document.getElementById('show-login').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('signup-view').classList.add('hidden'); document.getElementById('login-view').classList.remove('hidden'); });
+            document.getElementById('signup-btn').addEventListener('click', handleSignup);
+            document.getElementById('login-btn').addEventListener('click', handleLogin);
+            document.getElementById('logout-btn').addEventListener('click', handleLogout);
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    navigateTo(link.dataset.page);
+                });
+            });
+            document.getElementById('notification-bell').addEventListener('click', () => { navigateTo('notifications-page'); loadNotifications(); });
+            
+            searchBar.addEventListener('keyup', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                const filteredMovies = movieList.filter(movie => { // Use dynamic list
+                    return movie.title?.toLowerCase().includes(searchTerm);
+                });
+                renderMovieList(filteredMovies);
+            });
+        }
+        
+        async function loadDownloadHistory() {
+             const historyList = document.getElementById('withdrawal-history-list');
+             const unlockedMovies = Object.keys(userUnlockData.unlocked || {}).filter(key => userUnlockData.unlocked[key] === true);
+             if (unlockedMovies.length === 0) {
+                 historyList.innerHTML = '<p class="text-gray-400 text-center">No movies unlocked yet.</p>';
+                 return;
+             }
+             historyList.innerHTML = '';
+             unlockedMovies.forEach(movieId => {
+                 // Search in the dynamic list
+                 const movie = movieList.find(m => m.id === movieId); 
+                 if (movie) {
+                      historyList.innerHTML += `<div class="card-bg p-3 rounded-lg flex items-center justify-between">
+                         <div><p class="font-semibold">${movie.title}</p><p class="text-xs text-gray-400">${movie.year}</p></div>
+                         <p class="font-bold text-green-400">UNLOCKED</p>
+                      </div>`;
+                 }
+             });
+        }
+
+        // --- Auth Functions (Kept simple) ---
+        async function handleSignup() {
+             const name = document.getElementById('signup-name').value;
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            if (!name || !email || !password) return showAlert("Please fill all fields.");
+            loader.style.display = 'flex';
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const userRef = doc(db, "users", userCredential.user.uid);
+                await setDoc(userRef, { name: name, email: email, createdAt: serverTimestamp() });
+            } catch (error) {
+                showAlert(error.message);
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        async function handleLogin() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            if (!email || !password) return showAlert("Please enter email and password.");
+            loader.style.display = 'flex';
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                showAlert(error.message);
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        async function handleLogout() { await signOut(auth); }
+
+        function showAlert(message) {
+            document.getElementById('alert-message').innerHTML = message;
+            document.getElementById('custom-alert').classList.remove('hidden');
+            document.getElementById('alert-ok-btn').onclick = () => {
+                document.getElementById('custom-alert').classList.add('hidden');
+            };
+        }
+        window.showAlert = showAlert;
+
+        // --- Notifications (Kept Simple) ---
+        async function loadNotifications() {
+             const listEl = document.getElementById('notifications-list');
+             listEl.innerHTML = '<p class="text-gray-400 text-center">No new alerts right now.</p>';
+        }
+
+    </script>
+</body>
+</html>
